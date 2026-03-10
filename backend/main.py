@@ -341,6 +341,23 @@ def pagos_sin_asignar(periodo_id: int, db: Session = Depends(get_db)):
     ).all()
     return [{"id": p.id, "plataforma": p.plataforma, "fecha": p.fecha_pago,
              "valor_neto": p.valor_neto, "referencia": p.referencia} for p in pagos]
+
+from backend.modules.generador_reportes import generar_reportes_excel
+from fastapi.responses import FileResponse
+
+@app.get("/api/reportes/{periodo_id}")
+def generar_reporte(periodo_id: int, db: Session = Depends(get_db)):
+    periodo = db.query(Periodo).filter_by(id=periodo_id).first()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado")
+    try:
+        import os
+        carpeta = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "exports")
+        ruta = generar_reportes_excel(db, periodo_id, carpeta)
+        return FileResponse(ruta, media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                           filename=os.path.basename(ruta))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0", "app": "ReconciliApp"}
