@@ -5,6 +5,7 @@
 <title>ReconciliApp</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
+
 :root{--bg:#E8E8E8;--surface:#F2F2F2;--surface2:#EBEBEB;--border:#CCCCCC;--accent:#00E5A0;--accent2:#4D7EFF;--accent3:#FF6B4A;--accent4:#FFD166;--text:#111111;--muted:#666666;--sub:#444444;}
 *{margin:0;padding:0;box-sizing:border-box;}
 body{background:var(--bg);color:var(--text);font-family:Instrument Sans,sans-serif;min-height:100vh;}
@@ -60,23 +61,26 @@ td{padding:13px 22px;font-size:15px;}
 .form-label{font-family:DM Mono,monospace;font-size:13px;color:var(--sub);min-width:120px;}
 .sync-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 2s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
 </style>
 </head>
 <body>
 <div class="layout">
 <aside class="sidebar">
   <div class="logo"><div class="logo-mark">Reconcili<span>App</span></div><div class="logo-sub">Colombia v1.0</div></div>
-  <div class="nav-item active" onclick="mostrar(this,chr(39)dashboard chr(39))">◈  Dashboard</div>
-  <div class="nav-item" onclick="mostrar(this,chr(39)periodo chr(39))">📅  Nuevo Periodo</div>
-  <div class="nav-item" onclick="mostrar(this,chr(39)credenciales chr(39))">🔑  Credenciales</div>
-  <div class="nav-item" onclick="mostrar(this,chr(39)sync chr(39))">⟳  Sincronizar</div>
-  <div class="nav-item" onclick="mostrar(this,chr(39)conciliar chr(39))">⇄  Conciliar</div>
-  <div class="nav-item" onclick="mostrar(this,chr(39)reportes chr(39))">↓  Reportes Excel</div>
-  <div style="margin-top:auto;padding:20px 24px 0;border-top:1px solid var(--border);"><div style="display:flex;align-items:center;gap:8px;font-family:DM Mono,monospace;font-size:12px;color:var(--muted);"><div class="sync-dot"></div>SERVIDOR ACTIVO</div></div>
+  <div class="nav-item active" onclick="mostrar(this,'dashboard')">◈ Dashboard</div>
+  <div class="nav-item" onclick="mostrar(this,'periodo')">📅 Nuevo Periodo</div>
+  <div class="nav-item" onclick="mostrar(this,'credenciales')">🔑 Credenciales</div>
+  <div class="nav-item" onclick="mostrar(this,'sync')">⟳ Sincronizar</div>
+  <div class="nav-item" onclick="mostrar(this,'conciliar')">⇄ Conciliar</div>
+  <div class="nav-item" onclick="mostrar(this,'reportes')">↓ Reportes Excel</div>
+  <div class="nav-item" onclick="mostrar(this,'banco')">🏦 Extracto Banco</div>
+  <div style="margin-top:auto;padding:20px 24px 0;border-top:1px solid var(--border);"><div style="display:flex;align-items:center;gap:8px;font-family:DM Mono,monospace;font-size:10px;color:var(--muted);"><div class="sync-dot"></div>SERVIDOR ACTIVO</div></div>
 </aside>
 <main class="main">
+
 <section id="sec-dashboard">
-  <div class="topbar"><div><div class="page-title">Dashboard <span>de Ingresos</span></div><div style="font-family:DM Mono,monospace;font-size:13px;color:var(--muted);margin-top:4px;" id="lbl-periodo">Selecciona un periodo</div></div>
+  <div class="topbar"><div><div class="page-title">Dashboard <span>de Ingresos</span></div><div style="font-family:DM Mono,monospace;font-size:11px;color:var(--muted);margin-top:4px;" id="lbl-periodo">Selecciona un periodo</div></div>
   <select class="input" id="sel-periodo" onchange="cargarDashboard()"><option value="">-- Periodo --</option></select></div>
   <div id="alerta" class="alert" style="display:none;"><span style="color:var(--accent3);">⚠</span><span id="alerta-txt"></span></div>
   <div class="cards">
@@ -86,8 +90,9 @@ td{padding:13px 22px;font-size:15px;}
     <div class="card yellow"><div class="card-label">En Mora</div><div class="card-value" id="c4">--</div><div class="card-sub">pagos tardios</div></div>
   </div>
   <div class="panel"><div class="panel-header"><div class="panel-title">Resumen del Periodo</div></div>
-  <div id="resumen-detalle" style="padding:28px;color:var(--muted);font-family:DM Mono,monospace;font-size:14px;">Selecciona un periodo para ver el resumen.</div></div>
+  <div id="resumen-detalle" style="padding:28px;color:var(--muted);font-family:DM Mono,monospace;font-size:13px;">Selecciona un periodo para ver el resumen.</div></div>
 </section>
+
 <section id="sec-periodo" style="display:none;">
   <div class="topbar"><div class="page-title">Nuevo <span>Periodo</span></div></div>
   <div class="panel"><div class="panel-header"><div class="panel-title">Crear Periodo de Conciliacion</div></div>
@@ -96,9 +101,10 @@ td{padding:13px 22px;font-size:15px;}
     <div class="form-row"><span class="form-label">Fecha Corte</span><input type="date" class="input" id="p-fin"></div>
     <div class="form-row"><span class="form-label">Descripcion</span><input type="text" class="input" id="p-desc" placeholder="Ej: Marzo 2025" style="width:280px;"></div>
     <button class="btn btn-primary" onclick="crearPeriodo()">Crear Periodo</button>
-    <div id="msg-periodo" style="margin-top:16px;font-family:DM Mono,monospace;font-size:14px;"></div>
+    <div id="msg-periodo" style="margin-top:16px;font-family:DM Mono,monospace;font-size:13px;"></div>
   </div></div>
 </section>
+
 <section id="sec-credenciales" style="display:none;">
   <div class="topbar"><div class="page-title">Configurar <span>Credenciales</span></div></div>
   <div class="panel"><div class="panel-header"><div class="panel-title">Claves de Acceso Cifradas</div></div>
@@ -109,9 +115,10 @@ td{padding:13px 22px;font-size:15px;}
     <div class="form-row"><span class="form-label">Password</span><input type="password" class="input" id="cred-pass" style="width:300px;"></div>
     <div class="form-row"><span class="form-label">Clave Maestra</span><input type="password" class="input" id="cred-master" placeholder="Tu clave secreta" style="width:300px;"></div>
     <button class="btn btn-primary" onclick="guardarCred()">Guardar Cifrado</button>
-    <div id="msg-cred" style="margin-top:16px;font-family:DM Mono,monospace;font-size:14px;"></div>
+    <div id="msg-cred" style="margin-top:16px;font-family:DM Mono,monospace;font-size:13px;"></div>
   </div></div>
 </section>
+
 <section id="sec-sync" style="display:none;">
   <div class="topbar"><div class="page-title">Sincronizar <span>Plataformas</span></div></div>
   <div class="panel"><div class="panel-header"><div class="panel-title">Descargar Reportes Automaticamente</div></div>
@@ -119,37 +126,67 @@ td{padding:13px 22px;font-size:15px;}
     <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="sync-pid"><option value="">-- Seleccionar --</option></select></div>
     <div class="form-row"><span class="form-label">Clave Maestra</span><input type="password" class="input" id="sync-master" style="width:280px;"></div>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;">
-      <button class="btn btn-secondary" onclick="sync(chr(39)shopify chr(39))">⟳ Shopify</button>
-      <button class="btn btn-secondary" onclick="sync(chr(39)bold chr(39))">⟳ Bold</button>
-      <button class="btn btn-secondary" onclick="sync(chr(39)wompi chr(39))">⟳ Wompi</button>
-      <button class="btn btn-secondary" onclick="sync(chr(39)mercadopago chr(39))">⟳ MercadoPago</button>
-      <button class="btn btn-secondary" onclick="sync(chr(39)paypal chr(39))">⟳ PayPal</button>
-      <button class="btn btn-secondary" onclick="sync(chr(39)addi chr(39))">⟳ Addi</button>
-      <button class="btn btn-secondary" onclick="sync(chr(39)sistecredito chr(39))">⟳ Sistecredito</button>
+      <button class="btn btn-secondary" onclick="sync('shopify')">⟳ Shopify</button>
+      <button class="btn btn-secondary" onclick="sync('bold')">⟳ Bold</button>
+      <button class="btn btn-secondary" onclick="sync('wompi')">⟳ Wompi</button>
+      <button class="btn btn-secondary" onclick="sync('mercadopago')">⟳ MercadoPago</button>
+      <button class="btn btn-secondary" onclick="sync('paypal')">⟳ PayPal</button>
+      <button class="btn btn-secondary" onclick="sync('addi')">⟳ Addi</button>
+      <button class="btn btn-secondary" onclick="sync('sistecredito')">⟳ Sistecredito</button>
     </div>
-    <div id="msg-sync" style="font-family:DM Mono,monospace;font-size:14px;"></div>
+    <div id="msg-sync" style="font-family:DM Mono,monospace;font-size:13px;"></div>
   </div></div>
 </section>
+
 <section id="sec-conciliar" style="display:none;">
   <div class="topbar"><div class="page-title">Ejecutar <span>Conciliacion</span></div></div>
   <div class="panel"><div class="panel-header"><div class="panel-title">Motor de Asignacion Automatica</div></div>
   <div style="padding:28px;">
     <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="conc-pid"><option value="">-- Seleccionar --</option></select></div>
     <button class="btn btn-primary" onclick="conciliar()">⇄ Conciliar Ahora</button>
-    <div id="msg-conc" style="margin-top:20px;font-family:DM Mono,monospace;font-size:14px;"></div>
+    <div id="msg-conc" style="margin-top:20px;font-family:DM Mono,monospace;font-size:13px;"></div>
   </div></div>
 </section>
+
 <section id="sec-reportes" style="display:none;">
   <div class="topbar"><div class="page-title">Descargar <span>Reportes Excel</span></div></div>
   <div class="panel"><div class="panel-header"><div class="panel-title">Generar Reporte del Periodo</div></div>
   <div style="padding:28px;">
     <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="rep-pid"><option value="">-- Seleccionar --</option></select></div>
-    <p style="color:var(--sub);font-size:15px;margin-bottom:20px;">El Excel incluye 4 hojas: A) Pedidos pagados  B) Mora  C) CxC al cierre  D) Comisiones</p>
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">El Excel incluye 4 hojas: A) Pedidos pagados  B) Mora  C) CxC al cierre  D) Comisiones</p>
     <button class="btn btn-primary" onclick="descargar()">↓ Descargar Excel</button>
-    <div id="msg-rep" style="margin-top:16px;font-family:DM Mono,monospace;font-size:14px;"></div>
+    <div id="msg-rep" style="margin-top:16px;font-family:DM Mono,monospace;font-size:13px;"></div>
   </div></div>
 </section>
-</main></div>
+
+<section id="sec-banco" style="display:none;">
+  <div class="topbar"><div class="page-title">Extracto <span>Bancario</span></div></div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Opcion 1 — Cargar CSV del banco</div></div>
+  <div style="padding:28px;">
+    <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="banco-pid"><option value="">-- Seleccionar --</option></select></div>
+    <div class="form-row"><span class="form-label">Archivo CSV</span><input type="file" class="input" id="banco-archivo" accept=".csv"></div>
+    <button class="btn btn-secondary" onclick="cargarExtracto()">Cargar CSV</button>
+    <div id="msg-csv" style="margin-top:16px;font-family:DM Mono,monospace;font-size:13px;"></div>
+  </div></div>
+  <div class="panel" style="margin-top:16px;"><div class="panel-header"><div class="panel-title">Opcion 2 — Foto del extracto con IA</div></div>
+  <div style="padding:28px;">
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">Toma una foto o captura de pantalla del extracto. Claude Vision extrae los ingresos automaticamente.</p>
+    <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="foto-pid"><option value="">-- Seleccionar --</option></select></div>
+    <div class="form-row"><span class="form-label">Fuente</span>
+      <select class="input" id="foto-fuente">
+        <option value="bancolombia">Bancolombia</option>
+        <option value="bold">Bold</option>
+      </select>
+    </div>
+    <div class="form-row"><span class="form-label">Foto extracto</span><input type="file" class="input" id="foto-archivo" accept="image/*"></div>
+    <div class="form-row"><span class="form-label">API Key Claude</span><input type="password" class="input" id="foto-apikey" placeholder="sk-ant-..." style="width:300px;"></div>
+    <button class="btn btn-primary" onclick="cargarFoto()">📸 Analizar con IA</button>
+    <div id="msg-banco" style="margin-top:16px;font-family:DM Mono,monospace;font-size:13px;"></div>
+  </div></div>
+</section>
+
+</main>
+</div>
 <script>
 const API = "http://127.0.0.1:8080";
 async function apicall(method, path, body) {
@@ -168,10 +205,11 @@ function peso(v) { return "$" + Math.round(v||0).toLocaleString("es-CO"); }
 async function cargarPeriodos() {
   try {
     const ps = await apicall("GET", "/api/periodos");
-    ["sel-periodo","sync-pid","conc-pid","rep-pid"].forEach(id => {
+    ["sel-periodo","sync-pid","conc-pid","rep-pid","banco-pid","foto-pid"].forEach(id => {
       const s = document.getElementById(id);
+      if (!s) return;
       s.innerHTML = "<option value=''>-- Seleccionar --</option>";
-      ps.forEach(p => s.innerHTML += "<option value='"+p.id+"'>" + p.descripcion + "</option>");
+      ps.forEach(p => s.innerHTML += "<option value='" + p.id + "'>" + p.descripcion + "</option>");
     });
   } catch(e) { console.log("Error cargando periodos", e); }
 }
@@ -184,7 +222,7 @@ async function cargarDashboard() {
   document.getElementById("c3").textContent = d.pedidos.pendientes;
   document.getElementById("c4").textContent = d.pedidos.en_mora;
   document.getElementById("lbl-periodo").textContent = "Periodo: "+d.periodo.fecha_inicio+" al "+d.periodo.fecha_corte;
-  if (d.pagos_plataforma.sin_asignar > 0) {
+  if (d.pagos_plataforma && d.pagos_plataforma.sin_asignar > 0) {
     document.getElementById("alerta").style.display="flex";
     document.getElementById("alerta-txt").textContent = d.pagos_plataforma.sin_asignar+" pagos sin asignar - ejecuta la conciliacion";
   }
@@ -221,7 +259,7 @@ async function sync(plat) {
   m.style.color="var(--accent4)"; m.textContent="Sincronizando "+plat+"...";
   const r = await apicall("POST", "/api/sync/"+plat, {periodo_id:parseInt(pid), password_master:master});
   m.style.color = r.ok ? "var(--accent)" : "var(--accent3)";
-  m.textContent = r.ok ? plat+": "+(r.pedidos_guardados||r.pagos_guardados||0)+" registros guardados" : "Error: "+(r.detail||JSON.stringify(r));
+  m.textContent = r.ok ? plat+": "+(r.pedidos_guardados||r.pagos_guardados||0)+" registros" : "Error: "+(r.detail||JSON.stringify(r));
 }
 async function conciliar() {
   const pid = document.getElementById("conc-pid").value;
@@ -230,7 +268,7 @@ async function conciliar() {
   m.style.color="var(--accent4)"; m.textContent="Ejecutando conciliacion...";
   const r = await apicall("POST", "/api/conciliar/"+pid);
   m.style.color="var(--accent)";
-  m.textContent = "Asignados: "+r.asignados+" | En revision: "+r.revision+" | Aun pendientes: "+r.pedidos_aun_pendientes;
+  m.textContent = "Asignados: "+r.asignados+" | En revision: "+r.revision+" | Pendientes: "+r.pedidos_aun_pendientes;
 }
 async function descargar() {
   const pid = document.getElementById("rep-pid").value;
@@ -239,6 +277,46 @@ async function descargar() {
   document.getElementById("msg-rep").style.color="var(--accent)";
   document.getElementById("msg-rep").textContent="Descarga iniciada";
 }
+async function cargarExtracto() {
+  const pid = document.getElementById("banco-pid").value;
+  const archivo = document.getElementById("banco-archivo").files[0];
+  if (!pid||!archivo) { alert("Selecciona periodo y archivo"); return; }
+  const m = document.getElementById("msg-csv");
+  m.style.color="var(--accent4)"; m.textContent="Cargando extracto...";
+  const form = new FormData();
+  form.append("periodo_id", pid);
+  form.append("archivo", archivo);
+  try {
+    const r = await fetch(API+"/api/banco/cargar-extracto", {method:"POST", body:form});
+    const d = await r.json();
+    m.style.color = d.ok ? "var(--accent)" : "var(--accent3)";
+    m.textContent = d.ok ? "Total: "+d.total_movimientos+" ingresos | "+peso(d.total_valor) : "Error: "+(d.detail||JSON.stringify(d));
+  } catch(e) { m.style.color="var(--accent3)"; m.textContent="Error: "+e; }
+}
+async function cargarFoto() {
+  const pid = document.getElementById("foto-pid").value;
+  const archivo = document.getElementById("foto-archivo").files[0];
+  const apikey = document.getElementById("foto-apikey").value;
+  const fuente = document.getElementById("foto-fuente").value;
+  if (!pid||!archivo||!apikey) { alert("Selecciona periodo, foto y API key"); return; }
+  const m = document.getElementById("msg-banco");
+  m.style.color="var(--accent4)"; m.textContent="Analizando imagen con IA... puede tomar 20 segundos";
+  const form = new FormData();
+  form.append("periodo_id", pid);
+  form.append("fuente", fuente);
+  form.append("api_key_claude", apikey);
+  form.append("archivo", archivo);
+  try {
+    const r = await fetch(API+"/api/banco/cargar-foto", {method:"POST", body:form});
+    const d = await r.json();
+    if (d.ok) {
+      m.style.color="var(--accent)";
+      m.textContent = d.total_movimientos===0 ? "No se encontraron ingresos en el periodo" :
+        "Total: "+d.total_movimientos+" ingresos | "+peso(d.total_valor)+" | "+JSON.stringify(d.por_origen);
+    } else { m.style.color="var(--accent3)"; m.textContent="Error: "+(d.detail||JSON.stringify(d)); }
+  } catch(e) { m.style.color="var(--accent3)"; m.textContent="Error: "+e; }
+}
 cargarPeriodos();
 </script>
-</body></html>
+</body>
+</html>

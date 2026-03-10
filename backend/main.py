@@ -368,6 +368,117 @@ def dashboard():
     fp = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "frontend", "index.html")
     with open(fp, encoding="utf-8") as f:
         return f.read()
+
+from backend.modules.conector_bancolombia import parsear_extracto_bancolombia, guardar_extracto_en_bd
+from fastapi import UploadFile, File, Form
+import tempfile, shutil
+
+@app.post("/api/banco/cargar-extracto")
+async def cargar_extracto(
+    periodo_id: int = Form(...),
+    archivo: UploadFile = File(...)
+):
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        periodo = db.query(Periodo).filter_by(id=periodo_id).first()
+        if not periodo:
+            raise HTTPException(status_code=404, detail="Periodo no encontrado")
+        tmp = tempfile.mkdtemp()
+        ruta = os.path.join(tmp, archivo.filename)
+        with open(ruta, "wb") as f:
+            shutil.copyfileobj(archivo.file, f)
+        movimientos = parsear_extracto_bancolombia(ruta)
+        if not movimientos:
+            raise HTTPException(status_code=400, detail="No se encontraron ingresos en el extracto. Verifica el formato CSV.")
+        guardados = guardar_extracto_en_bd(db, periodo_id, movimientos)
+        resumen = {}
+        for m in movimientos:
+            resumen[m["origen"]] = resumen.get(m["origen"], 0) + 1
+        return {"ok": True, "total_movimientos": guardados, "por_origen": resumen,
+                "total_valor": sum(m["valor"] for m in movimientos)}
+    finally:
+        db_gen.close()
+
+from backend.modules.vision_extracto import analizar_extracto_con_ia
+from backend.modules.conector_bancolombia import guardar_extracto_en_bd
+
+@app.post("/api/banco/cargar-foto")
+async def cargar_foto_extracto(
+    periodo_id: int = Form(...),
+    fuente: str = Form(...),
+    api_key_claude: str = Form(...),
+    archivo: UploadFile = File(...)
+):
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        periodo = db.query(Periodo).filter_by(id=periodo_id).first()
+        if not periodo:
+            raise HTTPException(status_code=404, detail="Periodo no encontrado")
+        tmp = tempfile.mkdtemp()
+        ruta = os.path.join(tmp, archivo.filename)
+        with open(ruta, "wb") as f:
+            shutil.copyfileobj(archivo.file, f)
+        fecha_ini = periodo.fecha_inicio.strftime("%d/%m/%Y")
+        fecha_fin = periodo.fecha_corte.strftime("%d/%m/%Y")
+        movimientos = analizar_extracto_con_ia(ruta, api_key_claude, fecha_ini, fecha_fin, fuente)
+        if not movimientos:
+            return {"ok": True, "total_movimientos": 0, "mensaje": "No se encontraron ingresos en el periodo indicado"}
+        guardados = guardar_extracto_en_bd(db, periodo_id, movimientos)
+        resumen = {}
+        for m in movimientos:
+            origen = m.get("origen", "desconocido")
+            resumen[origen] = resumen.get(origen, 0) + 1
+        return {"ok": True, "total_movimientos": guardados,
+                "total_valor": sum(m["valor"] for m in movimientos),
+                "por_origen": resumen}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db_gen.close()
+
+from backend.modules.vision_extracto import analizar_extracto_con_ia
+from backend.modules.conector_bancolombia import guardar_extracto_en_bd
+
+@app.post("/api/banco/cargar-foto")
+async def cargar_foto_extracto(
+    periodo_id: int = Form(...),
+    fuente: str = Form(...),
+    api_key_claude: str = Form(...),
+    archivo: UploadFile = File(...)
+):
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        periodo = db.query(Periodo).filter_by(id=periodo_id).first()
+        if not periodo:
+            raise HTTPException(status_code=404, detail="Periodo no encontrado")
+        tmp = tempfile.mkdtemp()
+        ruta = os.path.join(tmp, archivo.filename)
+        with open(ruta, "wb") as f:
+            shutil.copyfileobj(archivo.file, f)
+        fecha_ini = periodo.fecha_inicio.strftime("%d/%m/%Y")
+        fecha_fin = periodo.fecha_corte.strftime("%d/%m/%Y")
+        movimientos = analizar_extracto_con_ia(ruta, api_key_claude, fecha_ini, fecha_fin, fuente)
+        if not movimientos:
+            return {"ok": True, "total_movimientos": 0, "mensaje": "No se encontraron ingresos en el periodo indicado"}
+        guardados = guardar_extracto_en_bd(db, periodo_id, movimientos)
+        resumen = {}
+        for m in movimientos:
+            origen = m.get("origen", "desconocido")
+            resumen[origen] = resumen.get(origen, 0) + 1
+        return {"ok": True, "total_movimientos": guardados,
+                "total_valor": sum(m["valor"] for m in movimientos),
+                "por_origen": resumen}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db_gen.close()
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0", "app": "ReconciliApp"}
