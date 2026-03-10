@@ -12,6 +12,7 @@ from backend.modules.credenciales import (
 from backend.modules.conector_shopify import sincronizar_shopify
 from backend.utils.calendario_colombia import calcular_fecha_pago_esperada, calcular_mora
 
+
 crear_tablas()
 app = FastAPI(title="ReconciliApp", version="1.0.0")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
@@ -358,6 +359,15 @@ def generar_reporte(periodo_id: int, db: Session = Depends(get_db)):
                            filename=os.path.basename(ruta))
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
+
+from fastapi.responses import HTMLResponse
+import os as _os
+
+@app.get("/", response_class=HTMLResponse)
+def dashboard():
+    fp = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))), "frontend", "index.html")
+    with open(fp, encoding="utf-8") as f:
+        return f.read()
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0", "app": "ReconciliApp"}

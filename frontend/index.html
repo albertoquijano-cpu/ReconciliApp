@@ -1,0 +1,244 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>ReconciliApp</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=DM+Mono&family=Instrument+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root{--bg:#E8E8E8;--surface:#F2F2F2;--surface2:#EBEBEB;--border:#CCCCCC;--accent:#00E5A0;--accent2:#4D7EFF;--accent3:#FF6B4A;--accent4:#FFD166;--text:#111111;--muted:#666666;--sub:#444444;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{background:var(--bg);color:var(--text);font-family:Instrument Sans,sans-serif;min-height:100vh;}
+.layout{display:grid;grid-template-columns:220px 1fr;min-height:100vh;}
+.sidebar{background:var(--surface);border-right:1px solid var(--border);padding:28px 0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;}
+.logo{padding:0 24px 28px;border-bottom:1px solid var(--border);margin-bottom:20px;}
+.logo-mark{font-family:Syne,sans-serif;font-weight:800;font-size:20px;}
+.logo-mark span{color:var(--accent);}
+.logo-sub{font-family:DM Mono,monospace;font-size:12px;color:var(--muted);letter-spacing:1.5px;text-transform:uppercase;margin-top:2px;}
+.nav-item{display:flex;align-items:center;gap:10px;padding:9px 24px;cursor:pointer;font-size:16px;font-weight:500;color:var(--sub);transition:all .15s;margin-bottom:2px;}
+.nav-item:hover{background:var(--surface2);color:var(--text);}
+.nav-item.active{background:rgba(0,229,160,.1);color:var(--accent);border-left:3px solid var(--accent);}
+.main{padding:32px 36px;overflow-y:auto;}
+.topbar{display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;}
+.page-title{font-family:Syne,sans-serif;font-weight:700;font-size:26px;}
+.page-title span{color:var(--accent);}
+.btn{display:inline-flex;align-items:center;gap:8px;border:none;border-radius:8px;padding:9px 18px;font-family:Syne,sans-serif;font-weight:700;font-size:15px;cursor:pointer;transition:all .15s;}
+.btn-primary{background:var(--accent);color:#0A0D14;}
+.btn-primary:hover{background:#00FFB3;}
+.btn-secondary{background:var(--surface);border:1px solid var(--border);color:var(--sub);}
+.btn-secondary:hover{border-color:var(--accent);color:var(--accent);}
+.cards{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:24px;}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:20px;position:relative;overflow:hidden;}
+.card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px;}
+.card.green::before{background:var(--accent);}
+.card.blue::before{background:var(--accent2);}
+.card.red::before{background:var(--accent3);}
+.card.yellow::before{background:var(--accent4);}
+.card-label{font-family:DM Mono,monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);margin-bottom:12px;}
+.card-value{font-family:Syne,sans-serif;font-weight:800;font-size:28px;letter-spacing:-1px;line-height:1;margin-bottom:8px;}
+.card.green .card-value{color:var(--accent);}
+.card.blue .card-value{color:var(--accent2);}
+.card.red .card-value{color:var(--accent3);}
+.card.yellow .card-value{color:var(--accent4);}
+.card-sub{font-size:14px;color:var(--muted);}
+.panel{background:var(--surface);border:1px solid var(--border);border-radius:12px;overflow:hidden;margin-bottom:24px;}
+.panel-header{padding:18px 22px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;}
+.panel-title{font-family:Syne,sans-serif;font-weight:700;font-size:15px;}
+table{width:100%;border-collapse:collapse;}
+thead th{padding:12px 22px;text-align:left;font-family:DM Mono,monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;color:var(--muted);border-bottom:1px solid var(--border);}
+tbody tr{border-bottom:1px solid var(--border);transition:background .12s;}
+tbody tr:hover{background:var(--surface2);}
+tbody tr:last-child{border-bottom:none;}
+td{padding:13px 22px;font-size:15px;}
+.pill{display:inline-flex;align-items:center;padding:3px 8px;border-radius:20px;font-family:DM Mono,monospace;font-size:9px;text-transform:uppercase;}
+.pill-ok{background:rgba(0,229,160,.1);color:var(--accent);border:1px solid rgba(0,229,160,.2);}
+.pill-warn{background:rgba(255,209,102,.1);color:var(--accent4);border:1px solid rgba(255,209,102,.2);}
+.pill-err{background:rgba(255,107,74,.1);color:var(--accent3);border:1px solid rgba(255,107,74,.2);}
+.alert{background:rgba(255,107,74,.08);border:1px solid rgba(255,107,74,.25);border-radius:10px;padding:12px 18px;display:flex;align-items:center;gap:12px;margin-bottom:20px;font-size:15px;color:var(--sub);}
+.input{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:8px 12px;font-family:DM Mono,monospace;font-size:14px;color:var(--text);outline:none;}
+.input:focus{border-color:rgba(0,229,160,.4);}
+.form-row{display:flex;gap:12px;align-items:center;margin-bottom:16px;}
+.form-label{font-family:DM Mono,monospace;font-size:13px;color:var(--sub);min-width:120px;}
+.sync-dot{width:6px;height:6px;border-radius:50%;background:var(--accent);box-shadow:0 0 8px var(--accent);animation:pulse 2s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+</style>
+</head>
+<body>
+<div class="layout">
+<aside class="sidebar">
+  <div class="logo"><div class="logo-mark">Reconcili<span>App</span></div><div class="logo-sub">Colombia v1.0</div></div>
+  <div class="nav-item active" onclick="mostrar(this,chr(39)dashboard chr(39))">◈  Dashboard</div>
+  <div class="nav-item" onclick="mostrar(this,chr(39)periodo chr(39))">📅  Nuevo Periodo</div>
+  <div class="nav-item" onclick="mostrar(this,chr(39)credenciales chr(39))">🔑  Credenciales</div>
+  <div class="nav-item" onclick="mostrar(this,chr(39)sync chr(39))">⟳  Sincronizar</div>
+  <div class="nav-item" onclick="mostrar(this,chr(39)conciliar chr(39))">⇄  Conciliar</div>
+  <div class="nav-item" onclick="mostrar(this,chr(39)reportes chr(39))">↓  Reportes Excel</div>
+  <div style="margin-top:auto;padding:20px 24px 0;border-top:1px solid var(--border);"><div style="display:flex;align-items:center;gap:8px;font-family:DM Mono,monospace;font-size:12px;color:var(--muted);"><div class="sync-dot"></div>SERVIDOR ACTIVO</div></div>
+</aside>
+<main class="main">
+<section id="sec-dashboard">
+  <div class="topbar"><div><div class="page-title">Dashboard <span>de Ingresos</span></div><div style="font-family:DM Mono,monospace;font-size:13px;color:var(--muted);margin-top:4px;" id="lbl-periodo">Selecciona un periodo</div></div>
+  <select class="input" id="sel-periodo" onchange="cargarDashboard()"><option value="">-- Periodo --</option></select></div>
+  <div id="alerta" class="alert" style="display:none;"><span style="color:var(--accent3);">⚠</span><span id="alerta-txt"></span></div>
+  <div class="cards">
+    <div class="card green"><div class="card-label">Total Recaudado</div><div class="card-value" id="c1">--</div><div class="card-sub">del periodo</div></div>
+    <div class="card blue"><div class="card-label">Txns Conciliadas</div><div class="card-value" id="c2">--</div><div class="card-sub">pedidos pagados</div></div>
+    <div class="card red"><div class="card-label">Pendientes</div><div class="card-value" id="c3">--</div><div class="card-sub">por conciliar</div></div>
+    <div class="card yellow"><div class="card-label">En Mora</div><div class="card-value" id="c4">--</div><div class="card-sub">pagos tardios</div></div>
+  </div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Resumen del Periodo</div></div>
+  <div id="resumen-detalle" style="padding:28px;color:var(--muted);font-family:DM Mono,monospace;font-size:14px;">Selecciona un periodo para ver el resumen.</div></div>
+</section>
+<section id="sec-periodo" style="display:none;">
+  <div class="topbar"><div class="page-title">Nuevo <span>Periodo</span></div></div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Crear Periodo de Conciliacion</div></div>
+  <div style="padding:28px;">
+    <div class="form-row"><span class="form-label">Fecha Inicio</span><input type="date" class="input" id="p-ini"></div>
+    <div class="form-row"><span class="form-label">Fecha Corte</span><input type="date" class="input" id="p-fin"></div>
+    <div class="form-row"><span class="form-label">Descripcion</span><input type="text" class="input" id="p-desc" placeholder="Ej: Marzo 2025" style="width:280px;"></div>
+    <button class="btn btn-primary" onclick="crearPeriodo()">Crear Periodo</button>
+    <div id="msg-periodo" style="margin-top:16px;font-family:DM Mono,monospace;font-size:14px;"></div>
+  </div></div>
+</section>
+<section id="sec-credenciales" style="display:none;">
+  <div class="topbar"><div class="page-title">Configurar <span>Credenciales</span></div></div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Claves de Acceso Cifradas</div></div>
+  <div style="padding:28px;">
+    <div class="form-row"><span class="form-label">Plataforma</span><select class="input" id="cred-plat" onchange="toggleShopify()"><option value="shopify">Shopify</option><option value="bold">Bold</option><option value="wompi">Wompi</option><option value="mercadopago">Mercado Pago</option><option value="paypal">PayPal</option><option value="addi">Addi</option><option value="sistecredito">Sistecredito</option></select></div>
+    <div id="row-shopify"><div class="form-row"><span class="form-label">URL Tienda</span><input type="text" class="input" id="cred-url" placeholder="https://tienda.myshopify.com" style="width:300px;"></div></div>
+    <div class="form-row"><span class="form-label">Email</span><input type="email" class="input" id="cred-email" style="width:300px;"></div>
+    <div class="form-row"><span class="form-label">Password</span><input type="password" class="input" id="cred-pass" style="width:300px;"></div>
+    <div class="form-row"><span class="form-label">Clave Maestra</span><input type="password" class="input" id="cred-master" placeholder="Tu clave secreta" style="width:300px;"></div>
+    <button class="btn btn-primary" onclick="guardarCred()">Guardar Cifrado</button>
+    <div id="msg-cred" style="margin-top:16px;font-family:DM Mono,monospace;font-size:14px;"></div>
+  </div></div>
+</section>
+<section id="sec-sync" style="display:none;">
+  <div class="topbar"><div class="page-title">Sincronizar <span>Plataformas</span></div></div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Descargar Reportes Automaticamente</div></div>
+  <div style="padding:28px;">
+    <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="sync-pid"><option value="">-- Seleccionar --</option></select></div>
+    <div class="form-row"><span class="form-label">Clave Maestra</span><input type="password" class="input" id="sync-master" style="width:280px;"></div>
+    <div style="display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;">
+      <button class="btn btn-secondary" onclick="sync(chr(39)shopify chr(39))">⟳ Shopify</button>
+      <button class="btn btn-secondary" onclick="sync(chr(39)bold chr(39))">⟳ Bold</button>
+      <button class="btn btn-secondary" onclick="sync(chr(39)wompi chr(39))">⟳ Wompi</button>
+      <button class="btn btn-secondary" onclick="sync(chr(39)mercadopago chr(39))">⟳ MercadoPago</button>
+      <button class="btn btn-secondary" onclick="sync(chr(39)paypal chr(39))">⟳ PayPal</button>
+      <button class="btn btn-secondary" onclick="sync(chr(39)addi chr(39))">⟳ Addi</button>
+      <button class="btn btn-secondary" onclick="sync(chr(39)sistecredito chr(39))">⟳ Sistecredito</button>
+    </div>
+    <div id="msg-sync" style="font-family:DM Mono,monospace;font-size:14px;"></div>
+  </div></div>
+</section>
+<section id="sec-conciliar" style="display:none;">
+  <div class="topbar"><div class="page-title">Ejecutar <span>Conciliacion</span></div></div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Motor de Asignacion Automatica</div></div>
+  <div style="padding:28px;">
+    <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="conc-pid"><option value="">-- Seleccionar --</option></select></div>
+    <button class="btn btn-primary" onclick="conciliar()">⇄ Conciliar Ahora</button>
+    <div id="msg-conc" style="margin-top:20px;font-family:DM Mono,monospace;font-size:14px;"></div>
+  </div></div>
+</section>
+<section id="sec-reportes" style="display:none;">
+  <div class="topbar"><div class="page-title">Descargar <span>Reportes Excel</span></div></div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Generar Reporte del Periodo</div></div>
+  <div style="padding:28px;">
+    <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="rep-pid"><option value="">-- Seleccionar --</option></select></div>
+    <p style="color:var(--sub);font-size:15px;margin-bottom:20px;">El Excel incluye 4 hojas: A) Pedidos pagados  B) Mora  C) CxC al cierre  D) Comisiones</p>
+    <button class="btn btn-primary" onclick="descargar()">↓ Descargar Excel</button>
+    <div id="msg-rep" style="margin-top:16px;font-family:DM Mono,monospace;font-size:14px;"></div>
+  </div></div>
+</section>
+</main></div>
+<script>
+const API = "http://127.0.0.1:8080";
+async function apicall(method, path, body) {
+  const opts = {method, headers:{"Content-Type":"application/json"}};
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  return r.json();
+}
+function mostrar(el, id) {
+  document.querySelectorAll("main section").forEach(s => s.style.display="none");
+  document.getElementById("sec-"+id).style.display="block";
+  document.querySelectorAll(".nav-item").forEach(n => n.classList.remove("active"));
+  el.classList.add("active");
+}
+function peso(v) { return "$" + Math.round(v||0).toLocaleString("es-CO"); }
+async function cargarPeriodos() {
+  try {
+    const ps = await apicall("GET", "/api/periodos");
+    ["sel-periodo","sync-pid","conc-pid","rep-pid"].forEach(id => {
+      const s = document.getElementById(id);
+      s.innerHTML = "<option value=''>-- Seleccionar --</option>";
+      ps.forEach(p => s.innerHTML += "<option value='"+p.id+"'>" + p.descripcion + "</option>");
+    });
+  } catch(e) { console.log("Error cargando periodos", e); }
+}
+async function cargarDashboard() {
+  const pid = document.getElementById("sel-periodo").value;
+  if (!pid) return;
+  const d = await apicall("GET", "/api/periodos/"+pid+"/resumen");
+  document.getElementById("c1").textContent = peso(d.pedidos.valor_pagado);
+  document.getElementById("c2").textContent = d.pedidos.pagados;
+  document.getElementById("c3").textContent = d.pedidos.pendientes;
+  document.getElementById("c4").textContent = d.pedidos.en_mora;
+  document.getElementById("lbl-periodo").textContent = "Periodo: "+d.periodo.fecha_inicio+" al "+d.periodo.fecha_corte;
+  if (d.pagos_plataforma.sin_asignar > 0) {
+    document.getElementById("alerta").style.display="flex";
+    document.getElementById("alerta-txt").textContent = d.pagos_plataforma.sin_asignar+" pagos sin asignar - ejecuta la conciliacion";
+  }
+  document.getElementById("resumen-detalle").innerHTML =
+    "Total pedidos: <b>"+d.pedidos.total+"</b> | "+
+    "Valor total: <b>"+peso(d.pedidos.valor_total)+"</b> | "+
+    "Pagados: <b>"+peso(d.pedidos.valor_pagado)+"</b> | "+
+    "Pendiente: <b>"+peso(d.pedidos.valor_pendiente)+"</b>";
+}
+async function crearPeriodo() {
+  const b = {fecha_inicio:document.getElementById("p-ini").value, fecha_corte:document.getElementById("p-fin").value, descripcion:document.getElementById("p-desc").value};
+  const r = await apicall("POST", "/api/periodos", b);
+  const m = document.getElementById("msg-periodo");
+  if (r.id) { m.style.color="var(--accent)"; m.textContent="Periodo creado ID "+r.id; cargarPeriodos(); }
+  else { m.style.color="var(--accent3)"; m.textContent="Error: "+JSON.stringify(r); }
+}
+function toggleShopify() {
+  document.getElementById("row-shopify").style.display = document.getElementById("cred-plat").value==="shopify" ? "block" : "none";
+}
+async function guardarCred() {
+  const plat = document.getElementById("cred-plat").value;
+  const datos = {email:document.getElementById("cred-email").value, password:document.getElementById("cred-pass").value};
+  if (plat==="shopify") datos.url_tienda = document.getElementById("cred-url").value;
+  const r = await apicall("POST", "/api/credenciales", {plataforma:plat, datos, password_master:document.getElementById("cred-master").value});
+  const m = document.getElementById("msg-cred");
+  m.style.color = r.ok ? "var(--accent)" : "var(--accent3)";
+  m.textContent = r.ok ? "Credenciales guardadas correctamente" : "Error: "+JSON.stringify(r);
+}
+async function sync(plat) {
+  const pid = document.getElementById("sync-pid").value;
+  const master = document.getElementById("sync-master").value;
+  if (!pid||!master) { alert("Selecciona periodo e ingresa clave maestra"); return; }
+  const m = document.getElementById("msg-sync");
+  m.style.color="var(--accent4)"; m.textContent="Sincronizando "+plat+"...";
+  const r = await apicall("POST", "/api/sync/"+plat, {periodo_id:parseInt(pid), password_master:master});
+  m.style.color = r.ok ? "var(--accent)" : "var(--accent3)";
+  m.textContent = r.ok ? plat+": "+(r.pedidos_guardados||r.pagos_guardados||0)+" registros guardados" : "Error: "+(r.detail||JSON.stringify(r));
+}
+async function conciliar() {
+  const pid = document.getElementById("conc-pid").value;
+  if (!pid) { alert("Selecciona un periodo"); return; }
+  const m = document.getElementById("msg-conc");
+  m.style.color="var(--accent4)"; m.textContent="Ejecutando conciliacion...";
+  const r = await apicall("POST", "/api/conciliar/"+pid);
+  m.style.color="var(--accent)";
+  m.textContent = "Asignados: "+r.asignados+" | En revision: "+r.revision+" | Aun pendientes: "+r.pedidos_aun_pendientes;
+}
+async function descargar() {
+  const pid = document.getElementById("rep-pid").value;
+  if (!pid) { alert("Selecciona un periodo"); return; }
+  window.open(API+"/api/reportes/"+pid, "_blank");
+  document.getElementById("msg-rep").style.color="var(--accent)";
+  document.getElementById("msg-rep").textContent="Descarga iniciada";
+}
+cargarPeriodos();
+</script>
+</body></html>
