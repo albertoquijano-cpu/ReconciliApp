@@ -75,6 +75,7 @@ td{padding:13px 22px;font-size:15px;}
   <div class="nav-item" onclick="mostrar(this,'conciliar')">⇄ Conciliar</div>
   <div class="nav-item" onclick="mostrar(this,'reportes')">↓ Reportes Excel</div>
   <div class="nav-item" onclick="mostrar(this,'banco')">🏦 Extracto Banco</div>
+  <div class="nav-item" onclick="mostrar(this,'cxc')">📋 CxC Inicial</div>
   <div style="margin-top:auto;padding:20px 24px 0;border-top:1px solid var(--border);"><div style="display:flex;align-items:center;gap:8px;font-family:DM Mono,monospace;font-size:10px;color:var(--muted);"><div class="sync-dot"></div>SERVIDOR ACTIVO</div></div>
 </aside>
 <main class="main">
@@ -185,6 +186,22 @@ td{padding:13px 22px;font-size:15px;}
   </div></div>
 </section>
 
+
+<section id="sec-cxc" style="display:none;">
+  <div class="topbar"><div class="page-title">CxC <span>Inicial del Periodo</span></div></div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Cargar Cuentas por Cobrar Pendientes</div></div>
+  <div style="padding:28px;">
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">Carga el Excel con los pedidos pendientes de cobro al inicio del periodo. Incluye pedidos de periodos anteriores que aun no han sido pagados.</p>
+    <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:20px;font-family:DM Mono,monospace;font-size:12px;color:var(--sub);">
+      Columnas requeridas: <b>Numero Pedido</b> (MS-XXXX) | <b>Valor</b><br>
+      Columnas opcionales: Cliente | Email | Fecha Pedido | Fecha Acordada Pago | Plataforma
+    </div>
+    <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="cxc-pid"><option value="">-- Seleccionar --</option></select></div>
+    <div class="form-row"><span class="form-label">Archivo Excel</span><input type="file" class="input" id="cxc-archivo" accept=".xlsx,.xls"></div>
+    <button class="btn btn-primary" onclick="cargarCxc()">↑ Cargar CxC Inicial</button>
+    <div id="msg-cxc" style="margin-top:16px;font-family:DM Mono,monospace;font-size:13px;"></div>
+  </div></div>
+</section>
 </main>
 </div>
 <script>
@@ -205,7 +222,7 @@ function peso(v) { return "$" + Math.round(v||0).toLocaleString("es-CO"); }
 async function cargarPeriodos() {
   try {
     const ps = await apicall("GET", "/api/periodos");
-    ["sel-periodo","sync-pid","conc-pid","rep-pid","banco-pid","foto-pid"].forEach(id => {
+    ["sel-periodo","sync-pid","conc-pid","rep-pid","banco-pid","foto-pid","cxc-pid"].forEach(id => {
       const s = document.getElementById(id);
       if (!s) return;
       s.innerHTML = "<option value=''>-- Seleccionar --</option>";
@@ -236,7 +253,26 @@ async function crearPeriodo() {
   const b = {fecha_inicio:document.getElementById("p-ini").value, fecha_corte:document.getElementById("p-fin").value, descripcion:document.getElementById("p-desc").value};
   const r = await apicall("POST", "/api/periodos", b);
   const m = document.getElementById("msg-periodo");
-  if (r.id) { m.style.color="var(--accent)"; m.textContent="Periodo creado ID "+r.id; cargarPeriodos(); }
+  if (r.id) { m.style.color="var(--accent)"; m.textContent="Periodo creado ID "+r.id; async function cargarCxc() {
+  const pid = document.getElementById("cxc-pid").value;
+  const archivo = document.getElementById("cxc-archivo").files[0];
+  if (!pid||!archivo) { alert("Selecciona periodo y archivo"); return; }
+  const m = document.getElementById("msg-cxc");
+  m.style.color="var(--accent4)"; m.textContent="Cargando CxC inicial...";
+  const form = new FormData();
+  form.append("periodo_id", pid);
+  form.append("archivo", archivo);
+  try {
+    const r = await fetch(API+"/api/cxc/cargar-inicial", {method:"POST", body:form});
+    const d = await r.json();
+    if (d.ok) {
+      m.style.color="var(--accent)";
+      m.textContent = "Cargados: "+d.guardados+" pedidos";
+      if (d.total_errores > 0) m.textContent += " | Omitidos: "+d.total_errores+" ("+d.errores.slice(0,3).join(", ")+")";
+    } else { m.style.color="var(--accent3)"; m.textContent="Error: "+(d.detail||JSON.stringify(d)); }
+  } catch(e) { m.style.color="var(--accent3)"; m.textContent="Error: "+e; }
+}
+cargarPeriodos(); }
   else { m.style.color="var(--accent3)"; m.textContent="Error: "+JSON.stringify(r); }
 }
 function toggleShopify() {
@@ -313,6 +349,25 @@ async function cargarFoto() {
       m.style.color="var(--accent)";
       m.textContent = d.total_movimientos===0 ? "No se encontraron ingresos en el periodo" :
         "Total: "+d.total_movimientos+" ingresos | "+peso(d.total_valor)+" | "+JSON.stringify(d.por_origen);
+    } else { m.style.color="var(--accent3)"; m.textContent="Error: "+(d.detail||JSON.stringify(d)); }
+  } catch(e) { m.style.color="var(--accent3)"; m.textContent="Error: "+e; }
+}
+async function cargarCxc() {
+  const pid = document.getElementById("cxc-pid").value;
+  const archivo = document.getElementById("cxc-archivo").files[0];
+  if (!pid||!archivo) { alert("Selecciona periodo y archivo"); return; }
+  const m = document.getElementById("msg-cxc");
+  m.style.color="var(--accent4)"; m.textContent="Cargando CxC inicial...";
+  const form = new FormData();
+  form.append("periodo_id", pid);
+  form.append("archivo", archivo);
+  try {
+    const r = await fetch(API+"/api/cxc/cargar-inicial", {method:"POST", body:form});
+    const d = await r.json();
+    if (d.ok) {
+      m.style.color="var(--accent)";
+      m.textContent = "Cargados: "+d.guardados+" pedidos";
+      if (d.total_errores > 0) m.textContent += " | Omitidos: "+d.total_errores+" ("+d.errores.slice(0,3).join(", ")+")";
     } else { m.style.color="var(--accent3)"; m.textContent="Error: "+(d.detail||JSON.stringify(d)); }
   } catch(e) { m.style.color="var(--accent3)"; m.textContent="Error: "+e; }
 }

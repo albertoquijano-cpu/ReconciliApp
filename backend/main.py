@@ -479,6 +479,32 @@ async def cargar_foto_extracto(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db_gen.close()
+
+from backend.modules.cargador_cxc import cargar_cxc_excel
+
+@app.post("/api/cxc/cargar-inicial")
+async def cargar_cxc_inicial(
+    periodo_id: int = Form(...),
+    archivo: UploadFile = File(...)
+):
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        periodo = db.query(Periodo).filter_by(id=periodo_id).first()
+        if not periodo:
+            raise HTTPException(status_code=404, detail="Periodo no encontrado")
+        tmp = tempfile.mkdtemp()
+        ruta = os.path.join(tmp, archivo.filename)
+        with open(ruta, "wb") as f:
+            shutil.copyfileobj(archivo.file, f)
+        guardados, errores = cargar_cxc_excel(ruta, periodo_id, db)
+        return {"ok": True, "guardados": guardados, "errores": errores, "total_errores": len(errores)}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
+    finally:
+        db_gen.close()
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0", "app": "ReconciliApp"}
