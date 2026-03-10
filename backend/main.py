@@ -296,6 +296,51 @@ async def sync_sistecredito(body: SyncPlataformaInput, db: Session = Depends(get
         guardados += 1
     db.commit()
     return {"ok": True, "pagos_guardados": guardados, "total_neto": resultado["total_neto"]}
+
+from backend.modules.motor_asignacion import ejecutar_conciliacion, asignar_pago
+
+class AsignacionManualInput(BaseModel):
+    pago_id: int
+    pedido_ids: list[int]
+
+@app.post("/api/conciliar/{periodo_id}")
+def conciliar_periodo(periodo_id: int, db: Session = Depends(get_db)):
+    periodo = db.query(Periodo).filter_by(id=periodo_id).first()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado")
+    resultado = ejecutar_conciliacion(db, periodo_id)
+    return resultado
+
+@app.post("/api/asignar-manual")
+def asignar_manual(body: AsignacionManualInput, db: Session = Depends(get_db)):
+    pago = db.query(PagoPlataforma).filter_by(id=body.pago_id).first()
+    if not pago:
+        raise HTTPException(status_code=404, detail="Pago no encontrado")
+    from backend.models.database import Pedido
+    from backend.utils.calendario_colombia import calcular_mora
+    from datetime import datetime
+    for pedido_id in body.pedido_ids:
+        pedido = db.query(Pedido).filter_by(id=pedido_id).first()
+        if pedido:
+            pedido.pago_id = pago.id
+            pedido.estado_conciliacion = "pagado"
+            pedido.fecha_pago_real = pago.fecha_pago
+            if pedido.fecha_pago_esperada and pago.fecha_pago:
+                fp = pago.fecha_pago.date() if isinstance(pago.fecha_pago, datetime) else pago.fecha_pago
+                fe = pedido.fecha_pago_esperada.date() if isinstance(pedido.fecha_pago_esperada, datetime) else pedido.fecha_pago_esperada
+                pedido.dias_mora = max(0, calcular_mora(fe, fp))
+    pago.estado_asignacion = "asignado"
+    db.commit()
+    return {"ok": True, "pedidos_asignados": len(body.pedido_ids)}
+
+@app.get("/api/pagos-sin-asignar/{periodo_id}")
+def pagos_sin_asignar(periodo_id: int, db: Session = Depends(get_db)):
+    pagos = db.query(PagoPlataforma).filter(
+        PagoPlataforma.periodo_id == periodo_id,
+        PagoPlataforma.estado_asignacion == "sin_asignar"
+    ).all()
+    return [{"id": p.id, "plataforma": p.plataforma, "fecha": p.fecha_pago,
+             "valor_neto": p.valor_neto, "referencia": p.referencia} for p in pagos]
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0", "app": "ReconciliApp"}
