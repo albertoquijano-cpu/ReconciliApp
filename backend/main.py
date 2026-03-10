@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import Request, FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from typing import Optional
@@ -370,7 +370,7 @@ def dashboard():
         return f.read()
 
 from backend.modules.conector_bancolombia import parsear_extracto_bancolombia, guardar_extracto_en_bd
-from fastapi import UploadFile, File, Form
+from fastapi import Request, UploadFile, File, Form
 import tempfile, shutil
 
 @app.post("/api/banco/cargar-extracto")
@@ -505,6 +505,65 @@ async def cargar_cxc_inicial(
         raise HTTPException(status_code=500, detail=str(e))
     finally:
         db_gen.close()
+
+@app.post("/api/sync/todas")
+async def sync_todas(request: Request):
+    body = await request.json()
+    periodo_id = body.get("periodo_id")
+    password_master = body.get("password_master")
+    if not periodo_id or not password_master:
+        raise HTTPException(status_code=400, detail="Falta periodo_id o password_master")
+    plataformas = ["shopify","bold","wompi","mercadopago","paypal","addi","sistecredito"]
+    resultados = []
+    for plat in plataformas:
+        try:
+            db_gen = get_db()
+            db = next(db_gen)
+            cred = obtener_credencial(db, plat, password_master)
+            if not cred:
+                resultados.append({"plataforma": plat, "ok": False, "error": "Sin credenciales configuradas"})
+                continue
+            periodo = db.query(Periodo).filter_by(id=periodo_id).first()
+            if not periodo:
+                resultados.append({"plataforma": plat, "ok": False, "error": "Periodo no encontrado"})
+                continue
+            if plat == "shopify":
+                from backend.modules.conector_shopify import sincronizar_shopify
+                r = sincronizar_shopify(db, periodo, cred)
+                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pedidos_guardados", 0)})
+            elif plat == "bold":
+                from backend.modules.conector_bold import sincronizar_bold
+                r = sincronizar_bold(db, periodo, cred)
+                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
+            elif plat == "wompi":
+                from backend.modules.conector_wompi import sincronizar_wompi
+                r = sincronizar_wompi(db, periodo, cred)
+                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
+            elif plat == "mercadopago":
+                from backend.modules.conector_mercadopago import sincronizar_mercadopago
+                r = sincronizar_mercadopago(db, periodo, cred)
+                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
+            elif plat == "paypal":
+                from backend.modules.conector_paypal import sincronizar_paypal
+                r = sincronizar_paypal(db, periodo, cred)
+                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
+            elif plat == "addi":
+                from backend.modules.conector_addi import sincronizar_addi
+                r = sincronizar_addi(db, periodo, cred)
+                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
+            elif plat == "sistecredito":
+                from backend.modules.conector_sistecredito import sincronizar_sistecredito
+                r = sincronizar_sistecredito(db, periodo, cred)
+                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
+        except Exception as e:
+            resultados.append({"plataforma": plat, "ok": False, "error": str(e)})
+        finally:
+            try: db_gen.close()
+            except: pass
+    total_ok = sum(1 for r in resultados if r["ok"])
+    total_registros = sum(r.get("registros", 0) for r in resultados if r["ok"])
+    return {"ok": True, "resultados": resultados, "total_plataformas": len(plataformas),
+            "exitosas": total_ok, "total_registros": total_registros}
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0", "app": "ReconciliApp"}

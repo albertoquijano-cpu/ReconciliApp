@@ -122,10 +122,20 @@ td{padding:13px 22px;font-size:15px;}
 
 <section id="sec-sync" style="display:none;">
   <div class="topbar"><div class="page-title">Sincronizar <span>Plataformas</span></div></div>
-  <div class="panel"><div class="panel-header"><div class="panel-title">Descargar Reportes Automaticamente</div></div>
+  <div class="panel"><div class="panel-header"><div class="panel-title">Configuracion</div></div>
   <div style="padding:28px;">
     <div class="form-row"><span class="form-label">Periodo</span><select class="input" id="sync-pid"><option value="">-- Seleccionar --</option></select></div>
     <div class="form-row"><span class="form-label">Clave Maestra</span><input type="password" class="input" id="sync-master" style="width:280px;"></div>
+  </div></div>
+  <div class="panel" style="margin-top:16px;"><div class="panel-header"><div class="panel-title">Sincronizar Todo</div></div>
+  <div style="padding:28px;">
+    <p style="color:var(--muted);font-size:14px;margin-bottom:20px;">Ejecuta todas las plataformas en secuencia automaticamente.</p>
+    <button class="btn btn-primary" style="font-size:15px;padding:12px 28px;" onclick="syncTodas()">⟳ Sincronizar Todas las Plataformas</button>
+    <div id="msg-sync-todas" style="margin-top:20px;font-family:DM Mono,monospace;font-size:13px;"></div>
+  </div></div>
+  <div class="panel" style="margin-top:16px;"><div class="panel-header"><div class="panel-title">Sincronizar Individualmente</div></div>
+  <div style="padding:28px;">
+    <p style="color:var(--muted);font-size:14px;margin-bottom:16px;">Usa esto si una plataforma fallo y necesitas re-sincronizarla.</p>
     <div style="display:flex;flex-wrap:wrap;gap:10px;margin:16px 0;">
       <button class="btn btn-secondary" onclick="sync('shopify')">⟳ Shopify</button>
       <button class="btn btn-secondary" onclick="sync('bold')">⟳ Bold</button>
@@ -286,6 +296,25 @@ async function guardarCred() {
   const m = document.getElementById("msg-cred");
   m.style.color = r.ok ? "var(--accent)" : "var(--accent3)";
   m.textContent = r.ok ? "Credenciales guardadas correctamente" : "Error: "+JSON.stringify(r);
+}
+async function syncTodas() {
+  const pid = document.getElementById("sync-pid").value;
+  const master = document.getElementById("sync-master").value;
+  if (!pid||!master) { alert("Selecciona periodo e ingresa clave maestra"); return; }
+  const m = document.getElementById("msg-sync-todas");
+  m.innerHTML = "<span style=color:var(--accent4)>Iniciando sincronizacion...</span>";
+  try {
+    const r = await apicall("POST", "/api/sync/todas", {periodo_id:parseInt(pid), password_master:master});
+    let html = "";
+    for (const res of r.resultados) {
+      const color = res.ok ? "var(--accent)" : "var(--accent3)";
+      const icono = res.ok ? "✅" : "❌";
+      const detalle = res.ok ? res.registros+" registros" : res.error;
+      html += "<div style=margin-bottom:6px;color:"+color+">"+icono+" <b>"+res.plataforma+"</b>: "+detalle+"</div>";
+    }
+    html += "<div style=margin-top:12px;font-weight:bold;color:var(--accent)>Total: "+r.total_registros+" registros en "+r.exitosas+"/"+r.total_plataformas+" plataformas</div>";
+    m.innerHTML = html;
+  } catch(e) { m.innerHTML = "<span style=color:var(--accent3)>Error: "+e+"</span>"; }
 }
 async function sync(plat) {
   const pid = document.getElementById("sync-pid").value;
