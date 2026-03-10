@@ -133,6 +133,169 @@ def calcular_comision(body: ComisionInput):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+from backend.modules.conector_bold import sincronizar_bold
+from backend.modules.conector_wompi import sincronizar_wompi
+from backend.modules.conector_mercadopago import sincronizar_mercadopago
+
+class SyncPlataformaInput(BaseModel):
+    periodo_id: int
+    password_master: str
+    headless: bool = True
+
+@app.post("/api/sync/bold")
+async def sync_bold(body: SyncPlataformaInput, db: Session = Depends(get_db)):
+    periodo = db.query(Periodo).filter_by(id=body.periodo_id).first()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado")
+    try:
+        credenciales = obtener_credencial(db, "bold", body.password_master)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    import tempfile
+    carpeta = tempfile.mkdtemp(prefix="reconcili_bold_")
+    resultado = await sincronizar_bold(credenciales, periodo.fecha_inicio.date(),
+                                       periodo.fecha_corte.date(), carpeta, body.headless)
+    if not resultado["ok"]:
+        raise HTTPException(status_code=500, detail=resultado["error"])
+    guardados = 0
+    for p in resultado["pagos"]:
+        db.add(PagoPlataforma(periodo_id=body.periodo_id, plataforma="bold",
+                              fecha_pago=p["fecha_pago"], valor_neto=p["valor_neto"],
+                              referencia=p["referencia"], metodo_pago=p["metodo_pago"],
+                              descripcion=p["descripcion"]))
+        guardados += 1
+    db.commit()
+    return {"ok": True, "pagos_guardados": guardados, "total_neto": resultado["total_neto"]}
+
+@app.post("/api/sync/wompi")
+async def sync_wompi(body: SyncPlataformaInput, db: Session = Depends(get_db)):
+    periodo = db.query(Periodo).filter_by(id=body.periodo_id).first()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado")
+    try:
+        credenciales = obtener_credencial(db, "wompi", body.password_master)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    import tempfile
+    carpeta = tempfile.mkdtemp(prefix="reconcili_wompi_")
+    resultado = await sincronizar_wompi(credenciales, periodo.fecha_inicio.date(),
+                                        periodo.fecha_corte.date(), carpeta, body.headless)
+    if not resultado["ok"]:
+        raise HTTPException(status_code=500, detail=resultado["error"])
+    guardados = 0
+    for p in resultado["pagos"]:
+        db.add(PagoPlataforma(periodo_id=body.periodo_id, plataforma="wompi",
+                              fecha_pago=p["fecha_pago"], valor_neto=p["valor_neto"],
+                              referencia=p["referencia"], metodo_pago=p["metodo_pago"],
+                              descripcion=p["descripcion"]))
+        guardados += 1
+    db.commit()
+    return {"ok": True, "pagos_guardados": guardados, "total_neto": resultado["total_neto"]}
+
+@app.post("/api/sync/mercadopago")
+async def sync_mercadopago(body: SyncPlataformaInput, db: Session = Depends(get_db)):
+    periodo = db.query(Periodo).filter_by(id=body.periodo_id).first()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado")
+    try:
+        credenciales = obtener_credencial(db, "mercadopago", body.password_master)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    import tempfile
+    carpeta = tempfile.mkdtemp(prefix="reconcili_mp_")
+    resultado = await sincronizar_mercadopago(credenciales, periodo.fecha_inicio.date(),
+                                              periodo.fecha_corte.date(), carpeta, body.headless)
+    if not resultado["ok"]:
+        raise HTTPException(status_code=500, detail=resultado["error"])
+    guardados = 0
+    for p in resultado["pagos"]:
+        db.add(PagoPlataforma(periodo_id=body.periodo_id, plataforma="mercadopago",
+                              fecha_pago=p["fecha_pago"], valor_neto=p["valor_neto"],
+                              referencia=p["referencia"], metodo_pago=p["metodo_pago"],
+                              descripcion=p["descripcion"]))
+        guardados += 1
+    db.commit()
+    return {"ok": True, "pagos_guardados": guardados, "total_neto": resultado["total_neto"]}
+
+from backend.modules.conector_paypal import sincronizar_paypal
+from backend.modules.conector_addi import sincronizar_addi
+from backend.modules.conector_sistecredito import sincronizar_sistecredito
+
+@app.post("/api/sync/paypal")
+async def sync_paypal(body: SyncPlataformaInput, db: Session = Depends(get_db)):
+    periodo = db.query(Periodo).filter_by(id=body.periodo_id).first()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado")
+    try:
+        credenciales = obtener_credencial(db, "paypal", body.password_master)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    import tempfile
+    carpeta = tempfile.mkdtemp(prefix="reconcili_paypal_")
+    resultado = await sincronizar_paypal(credenciales, periodo.fecha_inicio.date(),
+                                         periodo.fecha_corte.date(), carpeta, body.headless)
+    if not resultado["ok"]:
+        raise HTTPException(status_code=500, detail=resultado["error"])
+    guardados = 0
+    for p in resultado["pagos"]:
+        db.add(PagoPlataforma(periodo_id=body.periodo_id, plataforma="paypal",
+                              fecha_pago=p["fecha_pago"], valor_neto=p["valor_neto"],
+                              referencia=p["referencia"], metodo_pago=p["metodo_pago"],
+                              descripcion=p["descripcion"]))
+        guardados += 1
+    db.commit()
+    return {"ok": True, "pagos_guardados": guardados, "total_neto": resultado["total_neto"]}
+
+@app.post("/api/sync/addi")
+async def sync_addi(body: SyncPlataformaInput, db: Session = Depends(get_db)):
+    periodo = db.query(Periodo).filter_by(id=body.periodo_id).first()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado")
+    try:
+        credenciales = obtener_credencial(db, "addi", body.password_master)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    import tempfile
+    carpeta = tempfile.mkdtemp(prefix="reconcili_addi_")
+    resultado = await sincronizar_addi(credenciales, periodo.fecha_inicio.date(),
+                                       periodo.fecha_corte.date(), carpeta, body.headless)
+    if not resultado["ok"]:
+        raise HTTPException(status_code=500, detail=resultado["error"])
+    guardados = 0
+    for p in resultado["pagos"]:
+        db.add(PagoPlataforma(periodo_id=body.periodo_id, plataforma="addi",
+                              fecha_pago=p["fecha_pago"], valor_neto=p["valor_neto"],
+                              referencia=p["referencia"], metodo_pago=p["metodo_pago"],
+                              descripcion=p["descripcion"]))
+        guardados += 1
+    db.commit()
+    return {"ok": True, "pagos_guardados": guardados, "total_neto": resultado["total_neto"]}
+
+@app.post("/api/sync/sistecredito")
+async def sync_sistecredito(body: SyncPlataformaInput, db: Session = Depends(get_db)):
+    periodo = db.query(Periodo).filter_by(id=body.periodo_id).first()
+    if not periodo:
+        raise HTTPException(status_code=404, detail="Periodo no encontrado")
+    try:
+        credenciales = obtener_credencial(db, "sistecredito", body.password_master)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    import tempfile
+    carpeta = tempfile.mkdtemp(prefix="reconcili_sistecredito_")
+    resultado = await sincronizar_sistecredito(credenciales, periodo.fecha_inicio.date(),
+                                               periodo.fecha_corte.date(), carpeta, body.headless)
+    if not resultado["ok"]:
+        raise HTTPException(status_code=500, detail=resultado["error"])
+    guardados = 0
+    for p in resultado["pagos"]:
+        db.add(PagoPlataforma(periodo_id=body.periodo_id, plataforma="sistecredito",
+                              fecha_pago=p["fecha_pago"], valor_neto=p["valor_neto"],
+                              referencia=p["referencia"], metodo_pago=p["metodo_pago"],
+                              descripcion=p["descripcion"]))
+        guardados += 1
+    db.commit()
+    return {"ok": True, "pagos_guardados": guardados, "total_neto": resultado["total_neto"]}
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0", "app": "ReconciliApp"}
