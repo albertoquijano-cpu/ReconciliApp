@@ -4,11 +4,27 @@ from sqlalchemy.orm import sessionmaker, relationship
 from datetime import datetime
 import os
 
-BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DB_PATH = os.path.join(BASE_DIR, "data", "reconciliapp.db")
-os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+# ── Conexión a la base de datos ───────────────────────────────
+# Prioridad:
+# 1. Variable de entorno DATABASE_URL (PostgreSQL en producción)
+# 2. Variable de entorno RECONCILI_DB_PATH (SQLite en app empaquetada)
+# 3. Ruta local por defecto (desarrollo)
 
-engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
+DATABASE_URL = os.environ.get("DATABASE_URL")
+
+if DATABASE_URL:
+    # PostgreSQL — múltiples usuarios compartiendo datos
+    engine = create_engine(DATABASE_URL, pool_pre_ping=True)
+else:
+    # SQLite — uso local
+    if os.environ.get("RECONCILI_DB_PATH"):
+        DB_PATH = os.environ["RECONCILI_DB_PATH"]
+    else:
+        BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        DB_PATH = os.path.join(BASE_DIR, "data", "reconciliapp.db")
+    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
+    engine = create_engine(f"sqlite:///{DB_PATH}", echo=False)
+
 SessionLocal = sessionmaker(bind=engine)
 Base = declarative_base()
 
