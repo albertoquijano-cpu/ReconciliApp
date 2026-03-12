@@ -538,6 +538,7 @@ async def sync_todas(request: Request):
             if plat == "shopify":
                 from backend.modules.conector_shopify import sincronizar_shopify
                 r = await sincronizar_shopify(cred, fecha_ini, fecha_fin, carpeta, headless)
+                r = r if "r" in dir() else {"ok": False, "pagos": [], "error": "conector no retornó"}
                 guardados = 0
                 for p in r.get("pedidos", []):
                     from backend.utils.calendario_colombia import calcular_fecha_pago_esperada, calcular_mora
@@ -579,6 +580,7 @@ async def sync_todas(request: Request):
                 elif plat == "sistecredito":
                     from backend.modules.conector_sistecredito import sincronizar_sistecredito
                     r = await sincronizar_sistecredito(cred, fecha_ini, fecha_fin, carpeta, headless)
+                r = r if "r" in dir() else {"ok": False, "pagos": [], "error": "conector no retornó"}
                 guardados = 0
                 for p in r.get("pagos", []):
                     db.add(PagoPlataforma(periodo_id=periodo_id, plataforma=plat,
@@ -597,6 +599,70 @@ async def sync_todas(request: Request):
     total_registros = sum(r.get("registros", 0) for r in resultados if r["ok"])
     return {"ok": True, "resultados": resultados, "total_plataformas": len(plataformas),
             "exitosas": total_ok, "total_registros": total_registros}
+
+
+# ── CARGA MANUAL DE REPORTES ─────────────────────────────────────────────────
+
+async def _guardar_pagos(periodo_id, archivo, plataforma, parsear_fn):
+    db_gen = get_db()
+    db = next(db_gen)
+    try:
+        periodo = db.query(Periodo).filter_by(id=periodo_id).first()
+        if not periodo:
+            raise HTTPException(status_code=404, detail="Periodo no encontrado")
+        tmp = tempfile.mkdtemp()
+        ruta = os.path.join(tmp, archivo.filename)
+        with open(ruta, "wb") as f:
+            shutil.copyfileobj(archivo.file, f)
+        pagos = parsear_fn(ruta)
+        fecha_ini = periodo.fecha_inicio.date()
+        fecha_fin = periodo.fecha_corte.date()
+        pagos = [p for p in pagos if p.get("fecha_pago") and fecha_ini <= p["fecha_pago"].date() <= fecha_fin]
+        guardados = 0
+        for p in pagos:
+            db.add(PagoPlataforma(periodo_id=periodo_id, plataforma=plataforma,
+                fecha_pago=p["fecha_pago"], valor_neto=p["valor_neto"],
+                referencia=p["referencia"], metodo_pago=p["metodo_pago"],
+                descripcion=p.get("descripcion", "")))
+            guardados += 1
+        db.commit()
+        return {"ok": True, "guardados": guardados, "plataforma": plataforma}
+    except HTTPException:
+        raise
+    except Exception as e:
+        return {"ok": False, "error": str(e)}
+    finally:
+        db_gen.close()
+
+@app.post("/api/upload/bold")
+async def upload_bold(periodo_id: int = Form(...), archivo: UploadFile = File(...)):
+    from backend.modules.conector_bold import parsear_reporte_bold
+    return await _guardar_pagos(periodo_id, archivo, "bold", parsear_reporte_bold)
+
+@app.post("/api/upload/wompi")
+async def upload_wompi(periodo_id: int = Form(...), archivo: UploadFile = File(...)):
+    from backend.modules.conector_wompi import parsear_reporte_wompi
+    return await _guardar_pagos(periodo_id, archivo, "wompi", parsear_reporte_wompi)
+
+@app.post("/api/upload/mercadopago")
+async def upload_mercadopago(periodo_id: int = Form(...), archivo: UploadFile = File(...)):
+    from backend.modules.conector_mercadopago import parsear_reporte_mercadopago
+    return await _guardar_pagos(periodo_id, archivo, "mercadopago", parsear_reporte_mercadopago)
+
+@app.post("/api/upload/paypal")
+async def upload_paypal(periodo_id: int = Form(...), archivo: UploadFile = File(...)):
+    from backend.modules.conector_paypal import parsear_reporte_paypal
+    return await _guardar_pagos(periodo_id, archivo, "paypal", parsear_reporte_paypal)
+
+@app.post("/api/upload/addi")
+async def upload_addi(periodo_id: int = Form(...), archivo: UploadFile = File(...)):
+    from backend.modules.conector_addi import parsear_reporte_addi
+    return await _guardar_pagos(periodo_id, archivo, "addi", parsear_reporte_addi)
+
+@app.post("/api/upload/sistecredito")
+async def upload_sistecredito(periodo_id: int = Form(...), archivo: UploadFile = File(...)):
+    from backend.modules.conector_sistecredito import parsear_reporte_sistecredito
+    return await _guardar_pagos(periodo_id, archivo, "sistecredito", parsear_reporte_sistecredito)
 
 @app.get("/api/health")
 def health():

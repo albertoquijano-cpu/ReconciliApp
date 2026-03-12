@@ -309,8 +309,9 @@ async function syncTodas() {
     for (const res of r.resultados) {
       const color = res.ok ? "var(--accent)" : "var(--accent3)";
       const icono = res.ok ? "✅" : "❌";
-      const detalle = res.ok ? res.registros+" registros" : res.error;
-      html += "<div style=margin-bottom:6px;color:"+color+">"+icono+" <b>"+res.plataforma+"</b>: "+detalle+"</div>";
+      const detalle = res.ok ? res.registros+" registros" : (res.error || "Error desconocido");
+      const botonManual = !res.ok ? `<label style="cursor:pointer;margin-left:8px;font-size:12px;background:var(--accent4);color:#000;padding:2px 8px;border-radius:4px">📁 Subir CSV<input type="file" accept=".csv" style="display:none" onchange="uploadManual(this,'${res.plataforma}',${pid})"></label>` : "";
+      html += "<div style=margin-bottom:6px;color:"+color+">"+icono+" <b>"+res.plataforma+"</b>: "+detalle+botonManual+"</div>";
     }
     html += "<div style=margin-top:12px;font-weight:bold;color:var(--accent)>Total: "+r.total_registros+" registros en "+r.exitosas+"/"+r.total_plataformas+" plataformas</div>";
     m.innerHTML = html;
@@ -401,6 +402,30 @@ async function cargarCxc() {
   } catch(e) { m.style.color="var(--accent3)"; m.textContent="Error: "+e; }
 }
 cargarPeriodos();
+
+async function uploadManual(input, plataforma, periodo_id) {
+  const archivo = input.files[0];
+  if (!archivo) return;
+  const label = input.parentElement;
+  label.textContent = "Subiendo...";
+  const form = new FormData();
+  form.append("periodo_id", periodo_id);
+  form.append("archivo", archivo);
+  try {
+    const r = await fetch("/api/upload/" + plataforma, {method:"POST", body:form});
+    const d = await r.json();
+    if (d.ok) {
+      label.style.background = "var(--accent)";
+      label.textContent = "✅ " + d.guardados + " registros cargados";
+    } else {
+      label.style.background = "var(--accent3)";
+      label.textContent = "❌ " + (d.error || "Error");
+    }
+  } catch(e) {
+    label.style.background = "var(--accent3)";
+    label.textContent = "❌ Error: " + e;
+  }
+}
 </script>
 </body>
 </html>
