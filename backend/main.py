@@ -514,50 +514,80 @@ async def sync_todas(request: Request):
     body = await request.json()
     periodo_id = body.get("periodo_id")
     password_master = body.get("password_master")
+    headless = body.get("headless", True)
     if not periodo_id or not password_master:
         raise HTTPException(status_code=400, detail="Falta periodo_id o password_master")
     plataformas = ["shopify","bold","wompi","mercadopago","paypal","addi","sistecredito"]
     resultados = []
     for plat in plataformas:
+        db_gen = get_db()
+        db = next(db_gen)
         try:
-            db_gen = get_db()
-            db = next(db_gen)
-            cred = obtener_credencial(db, plat, password_master)
-            if not cred:
+            try:
+                cred = obtener_credencial(db, plat, password_master)
+            except ValueError:
                 resultados.append({"plataforma": plat, "ok": False, "error": "Sin credenciales configuradas"})
                 continue
             periodo = db.query(Periodo).filter_by(id=periodo_id).first()
             if not periodo:
                 resultados.append({"plataforma": plat, "ok": False, "error": "Periodo no encontrado"})
                 continue
+            fecha_ini = periodo.fecha_inicio.date()
+            fecha_fin = periodo.fecha_corte.date()
+            carpeta = tempfile.mkdtemp(prefix=f"reconcili_{plat}_")
             if plat == "shopify":
                 from backend.modules.conector_shopify import sincronizar_shopify
-                r = sincronizar_shopify(db, periodo, cred)
-                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pedidos_guardados", 0)})
-            elif plat == "bold":
-                from backend.modules.conector_bold import sincronizar_bold
-                r = sincronizar_bold(db, periodo, cred)
-                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
-            elif plat == "wompi":
-                from backend.modules.conector_wompi import sincronizar_wompi
-                r = sincronizar_wompi(db, periodo, cred)
-                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
-            elif plat == "mercadopago":
-                from backend.modules.conector_mercadopago import sincronizar_mercadopago
-                r = sincronizar_mercadopago(db, periodo, cred)
-                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
-            elif plat == "paypal":
-                from backend.modules.conector_paypal import sincronizar_paypal
-                r = sincronizar_paypal(db, periodo, cred)
-                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
-            elif plat == "addi":
-                from backend.modules.conector_addi import sincronizar_addi
-                r = sincronizar_addi(db, periodo, cred)
-                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
-            elif plat == "sistecredito":
-                from backend.modules.conector_sistecredito import sincronizar_sistecredito
-                r = sincronizar_sistecredito(db, periodo, cred)
-                resultados.append({"plataforma": plat, "ok": True, "registros": r.get("pagos_guardados", 0)})
+                r = await sincronizar_shopify(cred, fecha_ini, fecha_fin, carpeta, headless)
+                guardados = 0
+                for p in r.get("pedidos", []):
+                    from backend.utils.calendario_colombia import calcular_fecha_pago_esperada, calcular_mora
+                    fecha_esperada = None
+                    if p.get("fecha_pedido") and p.get("plataforma_pago"):
+                        fecha_esperada = calcular_fecha_pago_esperada(
+                            p["fecha_pedido"].date() if isinstance(p["fecha_pedido"], datetime) else p["fecha_pedido"],
+                            p["plataforma_pago"])
+                    dias_mora = 0
+                    if fecha_esperada and p.get("fecha_pago_real"):
+                        fp = p["fecha_pago_real"].date() if isinstance(p["fecha_pago_real"], datetime) else p["fecha_pago_real"]
+                        dias_mora = max(0, calcular_mora(fecha_esperada, fp))
+                    db.add(Pedido(periodo_id=periodo_id, numero_pedido=p["numero_pedido"],
+                        cliente_nombre=p["cliente_nombre"], cliente_email=p["cliente_email"],
+                        fecha_pedido=p["fecha_pedido"], valor_total=p["valor_total"],
+                        plataforma_pago=p["plataforma_pago"], estado_shopify=p["estado_shopify"],
+                        estado_conciliacion=p["estado_conciliacion"], fecha_pago_real=p.get("fecha_pago_real"),
+                        fecha_pago_esperada=datetime.combine(fecha_esperada, datetime.min.time()) if fecha_esperada else None,
+                        dias_mora=dias_mora))
+                    guardados += 1
+                db.commit()
+                resultados.append({"plataforma": plat, "ok": r.get("ok", False), "registros": guardados})
+            else:
+                if plat == "bold":
+                    from backend.modules.conector_bold import sincronizar_bold
+                    r = await sincronizar_bold(cred, fecha_ini, fecha_fin, carpeta, headless)
+                elif plat == "wompi":
+                    from backend.modules.conector_wompi import sincronizar_wompi
+                    r = await sincronizar_wompi(cred, fecha_ini, fecha_fin, carpeta, headless)
+                elif plat == "mercadopago":
+                    from backend.modules.conector_mercadopago import sincronizar_mercadopago
+                    r = await sincronizar_mercadopago(cred, fecha_ini, fecha_fin, carpeta, headless)
+                elif plat == "paypal":
+                    from backend.modules.conector_paypal import sincronizar_paypal
+                    r = await sincronizar_paypal(cred, fecha_ini, fecha_fin, carpeta, headless)
+                elif plat == "addi":
+                    from backend.modules.conector_addi import sincronizar_addi
+                    r = await sincronizar_addi(cred, fecha_ini, fecha_fin, carpeta, headless)
+                elif plat == "sistecredito":
+                    from backend.modules.conector_sistecredito import sincronizar_sistecredito
+                    r = await sincronizar_sistecredito(cred, fecha_ini, fecha_fin, carpeta, headless)
+                guardados = 0
+                for p in r.get("pagos", []):
+                    db.add(PagoPlataforma(periodo_id=periodo_id, plataforma=plat,
+                        fecha_pago=p["fecha_pago"], valor_neto=p["valor_neto"],
+                        referencia=p["referencia"], metodo_pago=p["metodo_pago"],
+                        descripcion=p["descripcion"]))
+                    guardados += 1
+                db.commit()
+                resultados.append({"plataforma": plat, "ok": r.get("ok", False), "registros": guardados})
         except Exception as e:
             resultados.append({"plataforma": plat, "ok": False, "error": str(e)})
         finally:
@@ -567,6 +597,7 @@ async def sync_todas(request: Request):
     total_registros = sum(r.get("registros", 0) for r in resultados if r["ok"])
     return {"ok": True, "resultados": resultados, "total_plataformas": len(plataformas),
             "exitosas": total_ok, "total_registros": total_registros}
+
 @app.get("/api/health")
 def health():
     return {"status": "ok", "version": "1.0.0", "app": "ReconciliApp"}
