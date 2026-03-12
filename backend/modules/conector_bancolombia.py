@@ -3,30 +3,35 @@ from datetime import datetime
 from sqlalchemy.orm import Session
 from backend.models.database import PagoPlataforma
 
-COLUMNAS_BANCOLOMBIA = {
-    "fecha": ["Fecha", "FECHA", "Fecha Transaccion"],
-    "descripcion": ["Descripcion", "DESCRIPCION", "Concepto"],
-    "referencia": ["Referencia", "REFERENCIA", "No. Comprobante"],
-    "debito": ["Debito", "DEBITO", "Retiro"],
-    "credito": ["Credito", "CREDITO", "Deposito", "Abono"],
-    "saldo": ["Saldo", "SALDO"],
-}
-
 ORIGEN_KEYWORDS = {
     "shopify": ["shopify", "stripe"],
     "bold": ["bold"],
-    "wompi": ["wompi"],
+    "wompi": ["wompi", "adelante soluci"],
     "mercadopago": ["mercado pago", "mercadopago"],
     "paypal": ["paypal"],
     "addi": ["addi"],
     "sistecredito": ["sistecredito"],
     "nequi": ["nequi"],
-    "qr": ["qr", "codigo qr"],
+    "qr": ["qr", "codigo qr", "pago qr"],
     "pse": ["pse", "ach"],
     "tarjeta": ["credibanco", "redeban", "visa", "mastercard"],
     "transferencia": ["transferencia", "trf"],
     "consignacion": ["consignacion"],
 }
+
+def identificar_origen(desc, tipo=None):
+    if tipo:
+        t = tipo.lower()
+        if t == "addi": return "addi"
+        if t == "wompi": return "wompi"
+        if t == "nequi": return "nequi"
+        if t == "qr": return "qr"
+    if not desc: return "bancolombia"
+    d = desc.lower()
+    for origen, kws in ORIGEN_KEYWORDS.items():
+        for kw in kws:
+            if kw in d: return origen
+    return "bancolombia"
 
 def limpiar_valor(txt):
     if not txt: return 0.0
@@ -38,26 +43,64 @@ def limpiar_valor(txt):
 
 def parsear_fecha(txt):
     if not txt: return None
+    if isinstance(txt, datetime): return txt
     for fmt in ["%d/%m/%Y","%Y-%m-%d","%d-%m-%Y","%Y/%m/%d"]:
         try: return datetime.strptime(str(txt).strip()[:10], fmt)
         except: continue
     return None
 
-def identificar_origen(desc):
-    if not desc: return "bancolombia"
-    d = desc.lower()
-    for origen, kws in ORIGEN_KEYWORDS.items():
-        for kw in kws:
-            if kw in d: return origen
-    return "bancolombia"
-
-def encontrar_col(headers, opciones):
-    for h in headers:
-        for op in opciones:
-            if op.lower() == h.lower().strip(): return h
-    return None
-
 def parsear_extracto_bancolombia(ruta):
+    ext = os.path.splitext(ruta)[1].lower()
+    if ext in [".xlsx", ".xls"]:
+        return _parsear_excel(ruta)
+    else:
+        return _parsear_csv(ruta)
+
+def _parsear_excel(ruta):
+    import openpyxl
+    wb = openpyxl.load_workbook(ruta)
+    # Buscar hoja con movimientos
+    hoja = None
+    for nombre in wb.sheetnames:
+        if any(k in nombre.lower() for k in ["mov", "transac", "extracto", "movimiento"]):
+            hoja = wb[nombre]
+            break
+    if not hoja:
+        hoja = wb.active
+
+    # Leer encabezados
+    headers = [str(c.value).strip() if c.value else "" for c in list(hoja.rows)[0]]
+
+    # Encontrar columnas
+    def col_idx(opciones):
+        for i, h in enumerate(headers):
+            for op in opciones:
+                if op.lower() == h.lower(): return i
+        return None
+
+    idx_fecha    = col_idx(["Fecha", "FECHA", "Fecha Transaccion"])
+    idx_valor    = col_idx(["Valor", "VALOR", "Credito", "Abono", "Deposito"])
+    idx_concepto = col_idx(["Concepto", "CONCEPTO", "Descripcion", "DESCRIPCION"])
+    idx_tipo     = col_idx(["Tipo", "TIPO", "Origen"])
+
+    movs = []
+    for row in hoja.iter_rows(min_row=2, values_only=True):
+        if not any(row): continue
+        valor = row[idx_valor] if idx_valor is not None else 0
+        if not valor or float(valor) <= 0: continue
+        fecha = row[idx_fecha] if idx_fecha is not None else None
+        concepto = row[idx_concepto] if idx_concepto is not None else ""
+        tipo = row[idx_tipo] if idx_tipo is not None else ""
+        movs.append({
+            "fecha": parsear_fecha(fecha),
+            "descripcion": str(concepto) if concepto else "",
+            "referencia": "",
+            "valor": float(valor),
+            "origen": identificar_origen(str(concepto) if concepto else "", str(tipo) if tipo else ""),
+        })
+    return movs
+
+def _parsear_csv(ruta):
     import csv
     from io import StringIO
     contenido = None
@@ -75,10 +118,15 @@ def parsear_extracto_bancolombia(ruta):
             break
     reader = csv.DictReader(StringIO("".join(contenido[header_row:])))
     headers = reader.fieldnames or []
-    col_f = encontrar_col(headers, COLUMNAS_BANCOLOMBIA["fecha"])
-    col_d = encontrar_col(headers, COLUMNAS_BANCOLOMBIA["descripcion"])
-    col_r = encontrar_col(headers, COLUMNAS_BANCOLOMBIA["referencia"])
-    col_c = encontrar_col(headers, COLUMNAS_BANCOLOMBIA["credito"])
+    def encontrar_col(opciones):
+        for h in headers:
+            for op in opciones:
+                if op.lower() == h.lower().strip(): return h
+        return None
+    col_f = encontrar_col(["Fecha", "FECHA", "Fecha Transaccion"])
+    col_d = encontrar_col(["Descripcion", "DESCRIPCION", "Concepto"])
+    col_r = encontrar_col(["Referencia", "REFERENCIA", "No. Comprobante"])
+    col_c = encontrar_col(["Credito", "CREDITO", "Deposito", "Abono", "Valor"])
     movs = []
     for row in reader:
         val = limpiar_valor(row.get(col_c, 0)) if col_c else 0

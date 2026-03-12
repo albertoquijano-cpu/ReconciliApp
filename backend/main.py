@@ -371,7 +371,7 @@ def dashboard():
 
 from backend.modules.conector_bancolombia import parsear_extracto_bancolombia, guardar_extracto_en_bd
 from fastapi import Request, UploadFile, File, Form
-import tempfile, shutil
+import tempfile, shutil, os
 
 @app.post("/api/banco/cargar-extracto")
 async def cargar_extracto(
@@ -388,7 +388,10 @@ async def cargar_extracto(
         ruta = os.path.join(tmp, archivo.filename)
         with open(ruta, "wb") as f:
             shutil.copyfileobj(archivo.file, f)
-        movimientos = parsear_extracto_bancolombia(ruta)
+        movimientos_todos = parsear_extracto_bancolombia(ruta)
+        fecha_ini = periodo.fecha_inicio.date()
+        fecha_fin = periodo.fecha_corte.date()
+        movimientos = [m for m in movimientos_todos if m["fecha"] and fecha_ini <= m["fecha"].date() <= fecha_fin]
         if not movimientos:
             raise HTTPException(status_code=400, detail="No se encontraron ingresos en el extracto. Verifica el formato CSV.")
         guardados = guardar_extracto_en_bd(db, periodo_id, movimientos)
